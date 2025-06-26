@@ -1,0 +1,110 @@
+body {
+    background-image: url(background.jpg);
+    background-position: center;
+    background-size: cover;
+}
+
+#div-1 {
+    position: relative;
+    width: 800px;
+    height: 200px;
+    overflow-y: auto;
+}
+
+#div-2 {
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);   
+    width: 720px;
+    padding-bottom: 15px;
+}
+
+#div-3 {
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%); 
+    width: 720px;
+}
+
+#div-4 {
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%); 
+    width: 720px;
+    margin-top: -10px;
+}
+
+h1 {
+    text-align: center;
+    color: #000000;
+    padding-top: 20px;
+
+}
+
+h2 {
+    font-size: 20px;
+    position: relative;
+    margin-bottom: 5px;
+}
+
+form {
+    z-index:0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    width: 800px;
+    height: 325px;
+    margin: auto;
+    border: 1px solid black;
+    background-color: rgb(252, 185, 113);
+    padding-right: 30px;
+    padding-bottom: 45px;
+    padding-left: 30px;
+}
+
+#recipes {
+    position: relative;
+    padding-left: 5px;
+}
+
+h3 {
+    font-size: 20px;
+    position: relative;
+    margin-bottom: 5px;
+}
+
+h4 {
+    position: relative;
+    font-size: 20px;
+    margin-bottom: 10px;
+    margin-left: 5px;
+}
+
+#output {
+    position: relative;
+    font-size: 18px;
+    margin-top: 5px;
+}
+
+#numb {
+    position: relative;
+    padding-left: 5px;
+}
+
+#recipessubmit {
+    position: relative;
+}
+
+#recipesreturn {
+    position: relative;
+    margin-left: 40px;
+    margin-top: 15px;
+    font-size: 15px;
+}
+
+input {
+    margin-top: 2px;
+}
+

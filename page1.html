@@ -1,0 +1,57 @@
+<html>
+    <head>
+        <title>Recipe Recommender</title>
+    </head>
+
+    <link rel="stylesheet" href="style.css">
+    <form id="recipeForm" action="/" method="GET">
+        <h1>Recipe Recommender</h1> 
+        <div id="div-1">
+            <div id="div-2">
+                <h2>List your ingredients below:</h2>
+
+                <textarea style="width:700px;height:40px;overflow:hidden" type="text" id="recipes" name="recipes" 
+                    placeholder="ex.
+        eggs, milk, flour, water, baking soda"></textarea><br>
+            </div>
+
+            <div id="div-3">
+                <h3>How many ingredients in the recipe need to match items from your ingredients list?</h3>
+
+                <textarea style="width:80px;height:25px;overflow:hidden;resize:none" type="text" id="numb" name="numb"></textarea><br>
+
+                <input type="submit" id="recipessubmit" value="Submit">
+            </div>
+
+            <div id="div-4">
+                <h4>Suggested recipes:</h4>
+                <ul id="output">{{output}}</ul>
+            </div>
+        </div>
+        <button type="button" id="recipesreturn" action="/" method="GET">Start over</button>
+    </form> 
+
+    <script>
+        document.getElementById("div-4").style.display = "none";
+        document.getElementById("recipesreturn").style.display = "none";
+
+        recipes = JSON.parse(document.getElementById("output").textContent);
+        document.getElementById("output").textContent = "";
+        for (each in recipes) {
+            document.getElementById("output").innerHTML += 
+            `<li>${each} (${recipes[each][0]}, ${recipes[each][1]})</li>`
+        }
+        
+        if (document.getElementById("output").textContent != "{{output}}") {
+            document.getElementById("div-2").style.display = "none";
+            document.getElementById("div-3").style.display = "none";
+            document.getElementById("div-4").style.display = "";
+            document.getElementById("recipesreturn").style.display = "";
+        }
+
+        document.getElementById("recipesreturn").addEventListener("click", (event) => {
+            window.location.href = '/';
+        });
+
+    </script>
+</html>
