@@ -1,5 +1,5 @@
 import requests
-from database.connectDB import *
+from connectDB import *
 
 mealAPIurl = "https://www.themealdb.com/api/json/v1/1/search.php?f="
 user = dbUser()
