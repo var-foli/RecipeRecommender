@@ -1,10 +1,11 @@
 import torch, kagglehub, json, os
-from transformers import AutoModelForMaskedLM, AutoTokenizer, BitsAndBytesConfig, pipeline, DistilBertForMaskedLM, DistilBertTokenizer
+from transformers import DistilBertForSequenceClassification, AutoTokenizer, BitsAndBytesConfig, pipeline, DistilBertForMaskedLM, DistilBertTokenizer, TrainingArguments, Trainer
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 from datasets import Dataset, DatasetDict, load_dataset
 import bitsandbytes as bnb
 from dotenv import load_dotenv
 
+model_name = "distilbert/distilbert-base-uncased"
 
 '''# testing model initially
 model_name = "distilbert-base-uncased"
@@ -21,47 +22,9 @@ for result in results:
     print(f"{result['token_str']}: {result['score']}")'''
 
 
+
 ########
-
-
-#### for loading model, fine-tuning
-model_name = "distilbert/distilbert-base-uncased"
-
-# use bitsandbytes config to load model in as a quantized model. this turns its 
-# weights from 32-bit floating-point (FP32) numbers into 4-bit floating-point 
-# numbers (NF4) (https://huggingface.co/blog/dvgodoy/fine-tuning-llm-hugging-face)
-bnbConfig = BitsAndBytesConfig(
-   load_in_4bit=True,
-   bnb_4bit_quant_type="nf4",
-   bnb_4bit_use_double_quant=True,
-   bnb_4bit_compute_dtype=torch.float32
-)
-
-model = AutoModelForMaskedLM.from_pretrained(
-    model_name,
-    device_map="auto",
-    quantization_config=bnbConfig
-)
-
 tokenizer = AutoTokenizer.from_pretrained(model_name)
-print(f'model size: {model.get_memory_footprint()/1e6}')
-
-model = prepare_model_for_kbit_training(model)
-
-lora_config = LoraConfig(
-    r=8,  # Low-rank dimension for the rank of the weight matrices
-    lora_alpha=16, # scaling factor for low-rank updates
-    lora_dropout=0.05, # dropout rate, regularizes low-rank matrices
-    target_modules="all-linear",  # Fine-tuning all linear layers, not sure if need to specify specific modules
-)
-
-# incorporates lora config into the model
-model = get_peft_model(model, lora_config)
-model.print_trainable_parameters()
-
-
-########
-
 
 load_dotenv()
 path = os.getenv('ETHNICITY_DATA_PATH') 
@@ -78,12 +41,93 @@ print(trainDataset[0])
 # Load json file
 testDataset = load_dataset("json", data_files=f"{path}/test.json")
 
+labelID = {}
+IDlabel = {}
+for id, cuisine in enumerate(trainDataset.unique("cuisine")):
+    labelID[cuisine] = id
+    IDlabel[id] = cuisine
+
 #preprocessing ingredient lists into tokens
 def tokenize(data):
     recipeIngrs = []
     for row in data['ingredients']:
         recipeIngrs.append(", ".join(row))
     
-    return tokenizer(recipeIngrs, padding="max_length", truncation=True)
+    tokenizedData = tokenizer(recipeIngrs, padding="max_length", truncation=True)
+    
+    # converting cuisines to their ID value
+    cuisines = []
+    if 'cuisine' in data:
+        for cuisine in data['cuisine']:
+            cuisines.append(labelID[cuisine])
+        tokenizedData['labels'] = cuisines
+
+    return tokenizedData
 
 tokenizedTrainData = trainDataset.map(tokenize, batched=True)
+tokenizedEvalData = testDataset.map(tokenize, batched=True)
+
+print(tokenizedTrainData)
+
+
+########
+
+
+#### for loading model, fine-tuning
+
+# use bitsandbytes config to load model in as a quantized model. this turns its 
+# weights from 32-bit floating-point (FP32) numbers into 4-bit floating-point 
+# numbers (NF4) (https://huggingface.co/blog/dvgodoy/fine-tuning-llm-hugging-face)
+bnbConfig = BitsAndBytesConfig(
+   load_in_4bit=True,
+   bnb_4bit_quant_type="nf4",
+   bnb_4bit_use_double_quant=True,
+   bnb_4bit_compute_dtype=torch.float32
+)
+
+model = DistilBertForSequenceClassification.from_pretrained(
+    model_name,
+    num_labels=len(labelID),
+    device_map="auto",
+    #quantization_config=bnbConfig
+)
+
+model = prepare_model_for_kbit_training(model)
+
+
+lora_config = LoraConfig(
+    r=8,  # Low-rank dimension for the rank of the weight matrices
+    lora_alpha=16, # scaling factor for low-rank updates
+    lora_dropout=0.05, # dropout rate, regularizes low-rank matrices
+    target_modules="all-linear",  # Fine-tuning all linear layers, not sure if need to specify specific modules
+)
+
+# incorporates lora config into the model
+model = get_peft_model(model, lora_config)
+model.print_trainable_parameters()
+
+
+
+
+
+training_args = TrainingArguments(
+    output_dir="./results",
+    per_device_train_batch_size=4,
+    eval_strategy="epoch",
+    save_strategy="epoch",
+    logging_steps=10,
+    num_train_epochs=3,
+    fp16=True,  # Enable mixed precision training
+    push_to_hub=False,
+)
+
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=tokenizedTrainData,
+    eval_dataset=tokenizedEvalData
+)
+
+
+
+trainer.train()
