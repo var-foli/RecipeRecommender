@@ -31,7 +31,7 @@ path = os.getenv('ETHNICITY_DATA_PATH')
 
 # this command was used to download the dataset locally and in now stored at the path location
 #dataset_id = "kaggle/recipe-ingredients-dataset"
-# path = kagglehub.dataset_download(dataset_id)
+#path = kagglehub.dataset_download(dataset_id)
 
 # Load json file
 trainDataset = load_dataset("json", data_files=f"{path}/train.json")['train']
@@ -41,6 +41,7 @@ print(trainDataset[0])
 # Load json file
 testDataset = load_dataset("json", data_files=f"{path}/test.json")
 
+# map of expected ids to their labels for categories, llm training requires ints as labels
 labelID = {}
 IDlabel = {}
 for id, cuisine in enumerate(trainDataset.unique("cuisine")):
@@ -79,17 +80,20 @@ print(tokenizedTrainData)
 # weights from 32-bit floating-point (FP32) numbers into 4-bit floating-point 
 # numbers (NF4) (https://huggingface.co/blog/dvgodoy/fine-tuning-llm-hugging-face)
 bnbConfig = BitsAndBytesConfig(
-   load_in_4bit=True,
+   load_in_4bit=True, # enable 4-bit quantization
    bnb_4bit_quant_type="nf4",
    bnb_4bit_use_double_quant=True,
-   bnb_4bit_compute_dtype=torch.float32
+   bnb_4bit_compute_dtype=torch.float16,
+   llm_int8_skip_modules=["classifier", "pre_classifier"] # not sure if need this, saw in tutorial https://github.com/dipanjanS/training-fine-tuning-large-language-models-workshop-dhs2024/blob/main/Module-03-Parameter-Efficient-Fine-tuning-LLMs/Solutions/Module_03_LC2_Parameter-Efficient_fine-tuning_BERT_for_Named_Entity_Recognition_QLoRA_Solutions.ipynb
 )
 
 model = DistilBertForSequenceClassification.from_pretrained(
     model_name,
     num_labels=len(labelID),
+    id2label = IDlabel,
+    label2id = labelID,
     device_map="auto",
-    #quantization_config=bnbConfig
+    quantization_config=bnbConfig
 )
 
 model = prepare_model_for_kbit_training(model)
