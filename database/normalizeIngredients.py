@@ -13,11 +13,11 @@ for meal_id, ingredientList in recipeIngrs:
 
       # if the ingredient is two-words-long or less, don't normalize it
       if len(phrase.split()) < 3:
-         normIngredients.append(phrase)
+         normIngredients.append(phrase.lower())
          continue
 
-      if phrase.lower() in {"little gem lettuce", "fast action yeast", "sweetened condensed milk", "wild garlic leaves", "dried leaves of summer savoury","vegetable stock cube", "five spice powder", "ready rolled shortcrust pastry", "pork back ribs", "chinese five spice powder", "cream of tartar", "makrut lime leaves", "rice flour pancakes", "extra virgin olive oil", "hispi (sweetheart) cabbage", "fillet of steak"}:
-         normIngredients.append(phrase)
+      if phrase.lower() in {"little gem lettuce", "fast action yeast", "sweetened condensed milk", "wild garlic leaves", "dried leaves of summer savoury","vegetable stock cube", "five spice powder", "ready rolled shortcrust pastry", "pork back ribs", "chinese five spice powder", "cream of tartar", "makrut lime leaves", "rice flour pancakes", "extra virgin olive oil", "hispi (sweetheart) cabbage", "fillet of steak", "baby lettuce leaves"}:
+         normIngredients.append(phrase.lower())
          continue
          
       elif phrase.lower() in convertWords:
@@ -51,7 +51,7 @@ for meal_id, ingredientList in recipeIngrs:
          # add all ingredient names back to the normalized list of ingredients
          if nouns:
             ingredient = " ".join(nouns)
-            normIngredients.append(ingredient)
+            normIngredients.append(ingredient.lower())
    if set(normIngredients)-set(ingredientList):
       print(meal_id)
       print(list(set(ingredientList)-set(normIngredients)), list(set(normIngredients)-set(ingredientList)))

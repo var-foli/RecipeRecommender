@@ -1,5 +1,7 @@
 import torch
 
+print(torch.__version__)
+
 if torch.cuda.is_available():
     print("GPU is available.")
     print(f"Number of GPUs: {torch.cuda.device_count()}")

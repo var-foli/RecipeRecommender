@@ -1,33 +1,17 @@
-import torch, kagglehub, json, os
-from transformers import DistilBertForSequenceClassification, AutoTokenizer, BitsAndBytesConfig, pipeline, DistilBertForMaskedLM, DistilBertTokenizer, TrainingArguments, Trainer
+import torch, os
+from transformers import DistilBertForSequenceClassification, AutoTokenizer, BitsAndBytesConfig, TrainingArguments, Trainer
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
-from datasets import Dataset, DatasetDict, load_dataset
-import bitsandbytes as bnb
+from datasets import load_dataset
 from dotenv import load_dotenv
 
 model_name = "distilbert/distilbert-base-uncased"
-
-'''# testing model initially
-model_name = "distilbert-base-uncased"
-
-tokenizer = DistilBertTokenizer.from_pretrained(model_name)
-model = DistilBertForMaskedLM.from_pretrained(model_name)
-
-nlp = pipeline("fill-mask", model=model, tokenizer=tokenizer)
-# example of argentinian dish
-example = "A dish comprised of Mixed Beef Cuts,Chorizo,Morcilla,Salt is ethnically [MASK]."
-
-results = nlp(example)
-for result in results:
-    print(f"{result['token_str']}: {result['score']}")'''
-
-
 
 ########
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 load_dotenv()
-path = os.getenv('ETHNICITY_DATA_PATH') 
+path = os.getenv('ORIGIN_DATA_PATH') 
 
 # this command was used to download the dataset locally and in now stored at the path location
 #dataset_id = "kaggle/recipe-ingredients-dataset"
@@ -36,10 +20,17 @@ path = os.getenv('ETHNICITY_DATA_PATH')
 # Load json file
 trainDataset = load_dataset("json", data_files=f"{path}/train.json")['train']
 print(trainDataset)
-print(trainDataset[0])
 
-# Load json file
-testDataset = load_dataset("json", data_files=f"{path}/test.json")
+split_dataset = trainDataset.train_test_split(test_size=0.2, seed=42) 
+train_data = split_dataset['train'] 
+
+split_eval = split_dataset['test'].train_test_split(test_size=0.2, seed=42)
+eval_data = split_eval['train'] 
+test_data = split_eval['test']
+
+print(f'train_data:\n{train_data}')
+print(f'eval_data:\n{eval_data}')
+print(f'test_data:\n{test_data}')
 
 # map of expected ids to their labels for categories, llm training requires ints as labels
 labelID = {}
@@ -65,11 +56,28 @@ def tokenize(data):
 
     return tokenizedData
 
-tokenizedTrainData = trainDataset.map(tokenize, batched=True)
-tokenizedEvalData = testDataset.map(tokenize, batched=True)
+tokenizedTrainData = train_data.map(tokenize, batched=True)
+tokenizedEvalData = eval_data.map(tokenize, batched=True)
+tokenizedTestData = test_data.map(tokenize, batched=True)
 
-print(tokenizedTrainData)
+def compute_metrics(prediction):
+    labels = prediction.label_ids
+    predictions = prediction.predictions.argmax(-1)
 
+    accuracy = accuracy_score(labels, predictions)
+    precision = precision_score(labels, predictions, average='weighted')
+    recall = recall_score(labels, predictions, average='weighted')
+    f1 = f1_score(labels, predictions, average='weighted')
+
+    with open("finetuningMetrics.log", "a") as file:
+        file.write(f'accuracy = {accuracy}, precision = {precision}, recall = {recall}, f1 = {f1}\n')
+
+    return {
+        'accuracy': accuracy,
+        'precision': precision,
+        'recall': recall,
+        'f1': f1
+    }
 
 ########
 
@@ -93,17 +101,27 @@ model = DistilBertForSequenceClassification.from_pretrained(
     id2label = IDlabel,
     label2id = labelID,
     device_map="auto",
-    quantization_config=bnbConfig
+    #quantization_config=bnbConfig # not using quantization anymore because slowing down trainign and distilibert is a small model anyway
 )
 
 model = prepare_model_for_kbit_training(model)
 
 
-lora_config = LoraConfig(
+
+'''lora_config = LoraConfig(
     r=8,  # Low-rank dimension for the rank of the weight matrices
     lora_alpha=16, # scaling factor for low-rank updates
     lora_dropout=0.05, # dropout rate, regularizes low-rank matrices
     target_modules="all-linear",  # Fine-tuning all linear layers, not sure if need to specify specific modules
+)'''
+
+
+# will use this to compare performance of models
+lora_config = LoraConfig(
+    r=256, # higher rank than 8 for less information loss for more complex task
+    lora_alpha=64, 
+    lora_dropout=0.05,
+    target_modules=["q_lin", "k_lin", "v_lin", "out_lin"],
 )
 
 # incorporates lora config into the model
@@ -111,17 +129,18 @@ model = get_peft_model(model, lora_config)
 model.print_trainable_parameters()
 
 
-
-
-
 training_args = TrainingArguments(
     output_dir="./results",
-    per_device_train_batch_size=4,
-    eval_strategy="epoch",
+    per_device_train_batch_size=64, # increased from 4 to increase GPU usage
+    per_device_eval_batch_size=32,
+    eval_strategy="steps",
+    eval_steps=100,
     save_strategy="epoch",
+    learning_rate=4e-4, # increased from 3E-5 because classification can improve with higher rate
     logging_steps=10,
-    num_train_epochs=3,
-    fp16=True,  # Enable mixed precision training
+    num_train_epochs=5,
+    #weight_decay=0.01, # this can reduce overfitting
+    fp16=True,  # Enable 16-bit floating point precision to reduce memory usage and speed up training
     push_to_hub=False,
 )
 
@@ -129,9 +148,23 @@ trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=tokenizedTrainData,
-    eval_dataset=tokenizedEvalData
+    eval_dataset=tokenizedEvalData,
+    compute_metrics=compute_metrics,
 )
 
-
-
 trainer.train()
+
+# evaluate the model
+results = trainer.evaluate(tokenizedEvalData)
+print(f'results: {results}')
+
+# evaluate the model
+test_results = trainer.evaluate(tokenizedTestData)
+print(f'test_results: {test_results}')
+
+merged_model = model.merge_and_unload() # merging the additional adapter weights that were trained with LoRA to the original frozen weights in distilibert
+merged_model.config.id2label = IDlabel
+merged_model.config.label2id = labelID
+merged_model.config.num_labels = len(labelID)
+merged_model.save_pretrained("./distilibert_origins")
+tokenizer.save_pretrained("./distilibert_origins")
