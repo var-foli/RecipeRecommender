@@ -24,3 +24,17 @@ for key, count in cuisines.most_common():
     print(f"{key}: {count}")
 
 print(cuisines)
+
+pd.set_option('display.max_colwidth', None)
+
+#print(df.loc[df['Cuisine'].apply(lambda x: 'Latin American' in x)]['Name'])
+#print(df.loc[df['Cuisine'].apply(lambda x: 'Latin' in x)]['Name'])
+print(df.loc[df['Cuisine'].apply(lambda x: 'Authentic' in x)]['Name'])
+print(df[df['Name'] == 'DIY Finnish Lonkero (a.k.a. Long Drink)'])
+print(df[df['Name'] == "Mexico Chiquito Punch"])
+
+
+print(df[df.duplicated(subset=['Name'], keep=False)])
+
+dupes = df[df.duplicated(subset=['Name'], keep=False)]
+print(dupes.sort_values('Name'))
