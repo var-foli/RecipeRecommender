@@ -168,7 +168,7 @@ class dbUser:
         # set cursor and execute
         cursor = self.connection.cursor()
         # https://stackoverflow.com/questions/32861500/group-by-column-to-get-array-results-in-postgresql array_agg to get ingredients as array for each recipe
-        cursor.execute("SELECT recipe_id, ARRAY_AGG(ingredient) as ingredients FROM recipes.recipe_relationships r JOIN recipes.ingredients i ON r.ingredient_id = i.ingredient_id GROUP BY recipe_id;")
+        cursor.execute("SELECT rr.recipe_id, r.name, ARRAY_AGG(i.ingredient) as ingredients FROM recipes.recipe_relationships rr JOIN recipes.ingredients i ON rr.ingredient_id = i.ingredient_id JOIN recipes.recipes r ON rr.recipe_id = r.recipe_id GROUP BY rr.recipe_id, r.name;")
 
         result = cursor.fetchall()
 
@@ -187,3 +187,116 @@ class dbUser:
 
         # close connection
         cursor.close()
+
+    # get id of measurement
+    def getMeasurements(self):
+        # set cursor and execute
+        cursor = self.connection.cursor()
+
+        cursor.execute("SELECT measurement_id, measurement FROM recipes.measurements")
+
+        result = cursor.fetchall()
+
+        # close connection
+        cursor.close()
+
+        return result
+    
+    # update measurement
+    def updateMeasurement(self, measurement, measurement_id):
+        # set cursor and execute
+        cursor = self.connection.cursor()
+        cursor.execute("UPDATE recipes.measurements SET measurement = %s WHERE measurement_id = %s;", (measurement, measurement_id))
+
+        # commit the insertion query
+        self.connection.commit()
+
+        # close connection
+        cursor.close()
+
+    # get duplicate measurements
+    def getDupMeasurements(self):
+        # set cursor and execute
+        cursor = self.connection.cursor()
+
+        cursor.execute("SELECT measurement, ARRAY_AGG(measurement_id ORDER BY measurement_id) as dup_ids FROM recipes.measurements GROUP BY measurement HAVING COUNT(*) > 1")
+
+        result = cursor.fetchall()
+
+        # close connection
+        cursor.close()
+
+        return result
+    
+    def updateIngrMeasureIds(self, new_m_id, old_m_id):
+        # set cursor and execute
+        cursor = self.connection.cursor()
+        # need to use ANY() because using with python array https://stackoverflow.com/questions/34627026/in-vs-any-operator-in-postgresql
+        cursor.execute("UPDATE recipes.recipe_relationships SET measurement_id = %s WHERE measurement_id = ANY(%s);", (new_m_id, old_m_id))
+
+        # commit the insertion query
+        self.connection.commit()
+
+        # close connection
+        cursor.close()
+
+    def deleteMeasurements(self, ids_to_delete):
+        # set cursor and execute
+        cursor = self.connection.cursor()
+
+        cursor.execute("DELETE FROM recipes.measurements WHERE measurement_id = ANY(%s);", (ids_to_delete,))
+
+        # commit the insertion query
+        self.connection.commit()
+
+        # close connection
+        cursor.close()
+
+    def getMatchingRecipes(self, ingredients, category, number):
+        # set cursor and execute
+        cursor = self.connection.cursor()
+
+        cursor.execute("SELECT r.name, r.source, r.youtube, r.category, ARRAY_AGG(i.ingredient) as ingredients, ARRAY_AGG(rr.measurement_amount) as measurement_amounts, ARRAY_AGG(m.measurement) as measurements, COUNT(i.ingredient) FILTER (WHERE i.ingredient = ANY(%s)) as match_count FROM recipes.recipes r JOIN recipes.recipe_relationships rr ON r.recipe_id = rr.recipe_id JOIN recipes.ingredients i ON rr.ingredient_id = i.ingredient_id JOIN recipes.measurements m ON rr.measurement_id = m.measurement_id WHERE r.category = %s GROUP BY r.name, r.source, r.youtube, r.category HAVING COUNT(i.ingredient) FILTER (WHERE i.ingredient = ANY(%s)) >= %s ORDER BY match_count DESC", (ingredients, category, ingredients, int(number)))
+
+        result = cursor.fetchall()
+
+        # close connection
+        cursor.close()
+
+        recipeData = []
+
+        for recipe in result:
+            recipeData.append({"name": recipe[0],"source": recipe[1], "youtube": recipe[2], "category": recipe[3], "ingredients": recipe[4], "measurement_amounts": recipe[5], "measurements": recipe[6], "match_count": recipe[7]})
+
+        return recipeData
+    
+    def getAnyMatchingRecipes(self, ingredients, number):
+        # set cursor and execute
+        cursor = self.connection.cursor()
+
+        cursor.execute("SELECT r.name, r.source, r.youtube, r.category, ARRAY_AGG(i.ingredient) as ingredients, ARRAY_AGG(rr.measurement_amount) as measurement_amounts, ARRAY_AGG(m.measurement) as measurements, COUNT(i.ingredient) FILTER (WHERE i.ingredient = ANY(%s)) as match_count FROM recipes.recipes r JOIN recipes.recipe_relationships rr ON r.recipe_id = rr.recipe_id JOIN recipes.ingredients i ON rr.ingredient_id = i.ingredient_id JOIN recipes.measurements m ON rr.measurement_id = m.measurement_id GROUP BY r.name, r.source, r.youtube, r.category HAVING COUNT(i.ingredient) FILTER (WHERE i.ingredient = ANY(%s)) >= %s ORDER BY match_count DESC", (ingredients, ingredients, int(number)))
+
+        result = cursor.fetchall()
+
+        # close connection
+        cursor.close()
+
+        recipeData = []
+
+        for recipe in result:
+            recipeData.append({"name": recipe[0],"source": recipe[1], "youtube": recipe[2], "category": recipe[3], "ingredients": recipe[4], "measurement_amounts": recipe[5], "measurements": recipe[6], "match_count": recipe[7]})
+
+        return recipeData
+    
+    def getCategories(self):
+        # set cursor and execute
+        cursor = self.connection.cursor()
+
+        cursor.execute("SELECT DISTINCT category from recipes.recipes ORDER BY category")
+
+        result = cursor.fetchall()
+
+        # close connection
+        cursor.close()
+
+        return [row[0] for row in result]

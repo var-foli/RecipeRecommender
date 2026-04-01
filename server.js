@@ -33,7 +33,6 @@ const server = http.createServer( async (req, res) => {
 
   const parsedUrl = url.parse(req.url, true);
   const params = new URLSearchParams(req.url);
-  const hasQuery = Object.keys(parsedUrl.query).length > 0;
   const baseUrl = parsedUrl.pathname;
   const extension = path.extname(baseUrl);
 
@@ -69,13 +68,34 @@ const server = http.createServer( async (req, res) => {
   }
   
   try {
-    // Handle query parameters case (recipe search)
-    if (hasQuery && (baseUrl === "/" || baseUrl === "/page1.html")) {
-      const fileContent = await fsPromises.readFile(filePath, "utf8");
-      output = await initialize(params.get("/?recipes"), params.get("numb"));
-      const modifiedContent = fileContent.replace("{{output}}", JSON.stringify(output, null, 2));
-      res.writeHead(200, { "Content-Type": "text/html" });
-      return res.end(modifiedContent);
+    // api endpoints for requesting recipes/category data
+    if (baseUrl === '/api/recipes') {
+      const ingredients = parsedUrl.query.ingredients;
+      const category = parsedUrl.query.category;
+      const number = parsedUrl.query.numb;
+
+      try {
+        const recipes = await fetch(`http://localhost:5000/api/db?ingredients=${encodeURIComponent(ingredients)}&category=${category}&numb=${number}`)
+        const response = await recipes.json()
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        return res.end(JSON.stringify(response));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: err.message }));
+      }
+
+    } else if (baseUrl === '/api/categories') {
+
+      try {
+        const response = await fetch('http://localhost:5000/api/categories');
+        const categories = await response.json();
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        return res.end(JSON.stringify(categories));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: err.message }));
+      }
+
     }
     
     // Serve the file normally

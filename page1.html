@@ -10,7 +10,7 @@
             <div id="div-2">
                 <h2>List your ingredients below:</h2>
 
-                <textarea style="width:700px;height:40px;overflow:hidden" type="text" id="recipes" name="recipes" 
+                <textarea style="width:700px; height:40px; overflow:hidden" type="text" id="ingredients" name="ingredients" 
                     placeholder="ex.
         eggs, milk, flour, water, baking soda"></textarea><br>
             </div>
@@ -18,40 +18,137 @@
             <div id="div-3">
                 <h3>How many ingredients in the recipe need to match items from your ingredients list?</h3>
 
-                <textarea style="width:80px;height:25px;overflow:hidden;resize:none" type="text" id="numb" name="numb"></textarea><br>
+                <textarea style="width:80px;height:25px;overflow:hidden;resize:none" type="text" id="numb" name="numb"></textarea><br><br>
+
+                <label for="categoriesDropdown">Choose a category:</label>
+                <select id="categoriesDropdown"></select><br>
 
                 <input type="submit" id="recipessubmit" value="Submit">
             </div>
 
             <div id="div-4">
                 <h4>Suggested recipes:</h4>
-                <ul id="output">{{output}}</ul>
+                <div id="div-5">
+                    <ul id="output"></ul>
+                </div>
             </div>
         </div>
         <button type="button" id="recipesreturn" action="/" method="GET">Start over</button>
+        
     </form> 
 
     <script>
         document.getElementById("div-4").style.display = "none";
         document.getElementById("recipesreturn").style.display = "none";
 
-        recipes = JSON.parse(document.getElementById("output").textContent);
-        document.getElementById("output").textContent = "";
-        for (each in recipes) {
-            document.getElementById("output").innerHTML += 
-            `<li>${each} (${recipes[each][0]}, ${recipes[each][1]})</li>`
-        }
+        window.addEventListener("DOMContentLoaded", async () => {
+            const cat = await fetch('/api/categories');
+            const categories = await cat.json();
+            console.log("categories: ", categories);
+
+            const categorySelector = document.getElementById("categoriesDropdown");
+
+            let element = document.createElement("option");
+            element.textContent = "Any";
+            categorySelector.appendChild(element);
+
+            categories.forEach(category => {
+                let element = document.createElement("option");
+                element.textContent = category;
+                categorySelector.appendChild(element);
+            });
+            categorySelector.value = "";
+        })
         
-        if (document.getElementById("output").textContent != "{{output}}") {
+        document.getElementById("recipessubmit").addEventListener("click", async (event) => {
+            // stop from reloading page
+            event.preventDefault();
+            const ingr = document.getElementById('ingredients').value;
+            const category = document.getElementById('categoriesDropdown').value;
+            const numb = document.getElementById('numb').value;
+            const response = await fetch(`/api/recipes?ingredients=${encodeURIComponent(ingr)}&category=${category}&numb=${numb}`);
+            const recipes = await response.json();
+            console.log("recipes on page: ", recipes)
+
+            let recipesData = document.getElementById("output");
+            let list = document.createElement("ul");
+            recipesData.appendChild(list);
+
+            recipes.recipes.forEach(recipe => {
+                let element = document.createElement("li");
+                element.textContent = recipe.name;
+                element.classList.add("recipe-name");
+                let subElement = document.createElement("ul");
+                element.appendChild(subElement);
+
+                let category = document.createElement("li");
+                category.innerHTML = "<span class='recipe-label'>Category:</span> " + recipe.category; 
+                subElement.appendChild(category);
+
+                let ingrList = document.createElement("li");  
+                ingrList.innerHTML = "<span class='recipe-label'>Ingredients:</span>"
+                let subIngrList = document.createElement("ul");
+                
+                for (i=0; i<recipe.ingredients.length; i++) {
+                    let ingr = document.createElement("li");
+                    if (recipe.measurement_amounts[i] != null) {
+                        ingr.textContent += recipe.measurement_amounts[i]
+                    }
+                    if (recipe.measurements[i] != null) {
+                        ingr.textContent += " " + recipe.measurements[i]
+                    }
+                    if (recipe.ingredients[i] != null) {
+                        ingr.textContent += " " + recipe.ingredients[i]
+                    }
+                    subIngrList.appendChild(ingr);
+                }
+                ingrList.appendChild(subIngrList);
+                subElement.appendChild(ingrList);
+
+                if ( !!recipe.source ) {
+                    let source = document.createElement("li");
+                    source.innerHTML = "<span class='recipe-label'>Source:</span> ";
+
+                    let sourceLink = document.createElement("a");
+                    sourceLink.href = recipe.source;
+                    sourceLink.target = "_blank";
+                    sourceLink.textContent = recipe.source;
+
+                    source.appendChild(sourceLink);
+                    subElement.appendChild(source);
+                }
+
+                if ( !!recipe.youtube ) {
+                    let youtube = document.createElement("li");
+                    youtube.innerHTML = "<span class='recipe-label'>Youtube:</span> ";
+
+                    let youtubeLink = document.createElement("a");
+                    youtubeLink.href = recipe.youtube;
+                    youtubeLink.target = "_blank";
+                    youtubeLink.textContent = recipe.youtube;
+
+                    youtube.appendChild(youtubeLink);
+                    subElement.appendChild(youtube);
+                }
+
+                list.appendChild(element);
+            });
+
             document.getElementById("div-2").style.display = "none";
             document.getElementById("div-3").style.display = "none";
-            document.getElementById("div-4").style.display = "";
-            document.getElementById("recipesreturn").style.display = "";
-        }
+            document.getElementById("div-4").style.display = "block";
+            document.getElementById("recipesreturn").style.display = "block";
+        })
 
-        document.getElementById("recipesreturn").addEventListener("click", (event) => {
-            window.location.href = '/';
-        });
-
+        document.getElementById("recipesreturn").addEventListener("click", async (event) => {
+            document.getElementById("output").replaceChildren();
+            document.getElementById("ingredients").value = "";
+            document.getElementById("numb").value = "";
+            document.getElementById("categoriesDropdown").value = "";
+            document.getElementById("div-2").style.display = "block";
+            document.getElementById("div-3").style.display = "block";
+            document.getElementById("div-4").style.display = "none";
+            document.getElementById("recipesreturn").style.display = "none";
+        })
     </script>
 </html>

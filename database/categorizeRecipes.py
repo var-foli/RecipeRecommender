@@ -20,9 +20,9 @@ nlp = pipeline("text-classification", model=model, tokenizer=tokenizer)
 
 recipeIngrs = user.getRecipeIngrs()
 
-for recipe_id, ingredients in recipeIngrs:
+for recipe_id, name, ingredients in recipeIngrs:
    
-   results = nlp(", ".join(ingredients))
+   results = nlp(name + ": " + ", ".join(ingredients))
    category = results[0]['label'].strip("LABEL_")
 
    user.insertRecipeCat(recipe_id, category)

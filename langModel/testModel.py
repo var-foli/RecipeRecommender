@@ -9,7 +9,8 @@ path = os.getenv('ORIGIN_DATA_PATH')
 #dataset_id = "kaggle/recipe-ingredients-dataset"
 #path = kagglehub.dataset_download(dataset_id)
 
-modelPath = "langModel/trainedModels/distilibert_origins"
+#modelPath = "langModel/trainedModels/distilibert_origins"
+modelPath = "./distilibert_origins"
 
 tokenizer = AutoTokenizer.from_pretrained(modelPath)
 model = DistilBertForSequenceClassification.from_pretrained(modelPath)
@@ -20,12 +21,20 @@ labelID = model.config.label2id
 nlp = pipeline("text-classification", model=model, tokenizer=tokenizer)
 
 
-examples = [
+'''examples = [
    "Mixed Beef Cuts, Chorizo, Morcilla, Salt", #Argentinian
    "Banana, Eggs, Baking Powder, Vanilla Extract, Oil, Pecan Nuts, Raspberries", #American
    "Basmati Rice, Beef Stock, Onion, Garlic, Green Chilli, Tomato, Salt, Oil, Turmeric Powder, Cardamom, Cloves, Bay Leaf", #Indian
    "Cabbage Leaves, Olive Oil, Onion, Rosemary, Celery, Basmati Rice, Cooked Chestnut, Cranberry, Vegetable Stock, Balsamic Vinegar, Clear Honey", #Polish
    "Toor dal, Water, Salt, Turmeric, Ghee, Chopped tomatoes, Cumin seeds, Mustard Seeds, Bay Leaf, Green Chilli, Ginger, Cilantro, Red Pepper, Salt, Sugar, Garam Masala" #Indian
+   ]'''
+
+examples = [
+   "Asado: Mixed Beef Cuts, Chorizo, Morcilla, Salt", #Argentinian
+   "Banana Pancakes: Banana, Eggs, Baking Powder, Vanilla Extract, Oil, Pecan Nuts, Raspberries", #American
+   "Beef Mandi: Basmati Rice, Beef Stock, Onion, Garlic, Green Chilli, Tomato, Salt, Oil, Turmeric Powder, Cardamom, Cloves, Bay Leaf", #Indian
+   "Braised stuffed cabbage: Cabbage Leaves, Olive Oil, Onion, Rosemary, Celery, Basmati Rice, Cooked Chestnut, Cranberry, Vegetable Stock, Balsamic Vinegar, Clear Honey", #Polish
+   "Dal fry: Toor dal, Water, Salt, Turmeric, Ghee, Chopped tomatoes, Cumin seeds, Mustard Seeds, Bay Leaf, Green Chilli, Ginger, Cilantro, Red Pepper, Salt, Sugar, Garam Masala" #Indian
    ]
 
 for example in examples:
