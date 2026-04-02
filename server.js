@@ -1,16 +1,22 @@
 const http = require("http");
 const path = require("path");
-const fs = require("fs");
 const fsPromises = require("fs").promises;
 const url = require('url');
-const initialize = require('./webpage_fxns');
 
 const logEvents = require("./logEvents");
 const EventEmitter = require("events");
 class Emitter extends EventEmitter {};
+const { createClient } = require("@supabase/supabase-js");
+const dotenv = require('dotenv');
+
+dotenv.config();
 
 //hosting server locally so we're just giving it port 3500
 const PORT = process.env.PORT || 3500;
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 const myEmitter = new Emitter();
 myEmitter.on("log", (msg, fileName) => logEvents(msg, fileName));
@@ -70,27 +76,55 @@ const server = http.createServer( async (req, res) => {
   try {
     // api endpoints for requesting recipes/category data
     if (baseUrl === '/api/recipes') {
-      const ingredients = parsedUrl.query.ingredients;
+      const ingredients = parsedUrl.query.ingredients.split(", ");
       const category = parsedUrl.query.category;
-      const number = parsedUrl.query.numb;
+      const number = Number(parsedUrl.query.numb);
 
-      try {
-        const recipes = await fetch(`http://localhost:5000/api/db?ingredients=${encodeURIComponent(ingredients)}&category=${category}&numb=${number}`)
-        const response = await recipes.json()
-        res.writeHead(200, { 'Content-Type': 'text/html' });
-        return res.end(JSON.stringify(response));
-      } catch (err) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ error: err.message }));
+      if (category == "Any") {
+        try {
+          const { data, error } = await supabase.schema('recipes').rpc('getanymatchingrecipes', {ingredients, number});
+
+          if (error) {
+            console.error('Supabase query error:', error);
+          }
+
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          return res.end(JSON.stringify({recipes: data}));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: err.message }));
+        }
+      } else {
+        try {
+          const { data, error } = await supabase.schema('recipes').rpc('getmatchingrecipes', {ingredients, category, number});
+
+          if (error) {
+            console.error('Supabase query error:', error);
+          }
+
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          return res.end(JSON.stringify({recipes: data}));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: err.message }));
+        }
       }
+
+
+      
 
     } else if (baseUrl === '/api/categories') {
 
       try {
-        const response = await fetch('http://localhost:5000/api/categories');
-        const categories = await response.json();
+        const { data, error } = await supabase.schema('recipes').rpc('getcategories', {});
+        
+        if (error) {
+          console.error('Supabase query error:', error);
+        }
+
+        //const categories = await response.json();
         res.writeHead(200, { 'Content-Type': 'text/html' });
-        return res.end(JSON.stringify(categories));
+        return res.end(JSON.stringify(data));
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ error: err.message }));
