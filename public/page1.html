@@ -34,6 +34,14 @@
             </div>
         </div>
         <button type="button" id="recipesreturn" action="/" method="GET">Start over</button>
+
+        <div id="modal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <p id="modal-header"></p>
+                <ul id="modal-ul"></ul>
+            </div>
+        </div>
         
     </form> 
 
@@ -44,7 +52,7 @@
         window.addEventListener("DOMContentLoaded", async () => {
             const cat = await fetch('/api/categories');
             const categories = await cat.json();
-            console.log("categories: ", categories);
+            
 
             const categorySelector = document.getElementById("categoriesDropdown");
 
@@ -68,7 +76,6 @@
             const numb = document.getElementById('numb').value;
             const response = await fetch(`/api/recipes?ingredients=${encodeURIComponent(ingr)}&category=${category}&numb=${numb}`);
             const recipes = await response.json();
-            console.log("recipes on page: ", recipes)
 
             let recipesData = document.getElementById("output");
             let list = document.createElement("ul");
@@ -88,9 +95,14 @@
                 let ingrList = document.createElement("li");  
                 ingrList.innerHTML = "<span class='recipe-label'>Ingredients:</span>"
                 let subIngrList = document.createElement("ul");
+                subIngrList.id = "ingredientsList";
                 
                 for (i=0; i<recipe.ingredients.length; i++) {
                     let ingr = document.createElement("li");
+
+                    // setting data-id attribute so that we can listen for click on this element and retrieve the text stored in it
+                    ingr.setAttribute("data-id", recipe.ingredients[i]);
+
                     if (recipe.measurement_amounts[i] != null) {
                         ingr.textContent += recipe.measurement_amounts[i]
                     }
@@ -101,6 +113,32 @@
                         ingr.textContent += " " + recipe.ingredients[i]
                     }
                     subIngrList.appendChild(ingr);
+
+                    ingr.onclick = async () => {
+                        const ingredient = ingr.dataset.id;
+
+                        const response = await fetch(`/api/alternatives?ingredient=${ingredient}`);
+                        const recipes = await response.json();
+
+                        let modalHeader = document.getElementById("modal-header");
+                        modalHeader.textContent = `Potential alternatives for ${ingredient}:`;
+
+                        let modalUl = document.getElementById("modal-ul");
+                        modalUl.replaceChildren();
+                        recipes.forEach((altIngr) => {
+                            let altIngrLi = document.createElement("li");
+                            altIngrLi.textContent = altIngr;
+                            modalUl.appendChild(altIngrLi);
+                        })
+
+                        let modal = document.getElementById("modal");
+                        let span = document.getElementsByClassName("close")[0];
+
+                        modal.style.display = "block";
+                        span.onclick = () => {
+                            modal.style.display = "none";
+                        }
+                    }
                 }
                 ingrList.appendChild(subIngrList);
                 subElement.appendChild(ingrList);
@@ -150,5 +188,14 @@
             document.getElementById("div-4").style.display = "none";
             document.getElementById("recipesreturn").style.display = "none";
         })
+
+        /*document.getElementById("ingredientsList").addEventListener("click", async (event) => { 
+            const ingredient = event.dataset.id;
+            console.log(`${ingredient}`);
+
+            const response = await fetch(`/api/alternatives?ingredient=${ingredient}`);
+            const recipes = await response.json();
+            console.log("alternatives: ", recipes);
+        })*/
     </script>
 </html>

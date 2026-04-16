@@ -26,5 +26,15 @@ def get_categories():
 
    return jsonify(categories)
 
+@app.route('/api/alternatives', methods=['GET'])
+def get_alternatives():
+   ingredient = request.args.get('ingredient')
+   print("ingredients for: ", ingredient)
+
+   alternatives = user.getAltIngredients(ingredient)
+   print("alternatives is: ", alternatives)
+
+   return jsonify(alternatives)
+
 if __name__ == '__main__':
    app.run(port=5000)

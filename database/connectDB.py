@@ -131,6 +131,8 @@ class dbUser:
     def insertRecipeRelationships(self, ingredient_id, recipe_id, amount, measurement_id):
         # set cursor and execute
         cursor = self.connection.cursor()
+
+        # insert measurement amount for each unique ingredient in a recipe - if the measurement amount already exists, add to it
         cursor.execute("INSERT INTO recipes.recipe_relationships (ingredient_id, recipe_id, measurement_amount, measurement_id) VALUES (%s, %s, %s, %s) ON CONFLICT (ingredient_id, recipe_id) DO UPDATE SET measurement_amount = recipe_relationships.measurement_amount + EXCLUDED.measurement_amount;", (ingredient_id, recipe_id, amount, measurement_id))
 
         # commit the insertion query
@@ -228,6 +230,7 @@ class dbUser:
 
         return result
     
+    # update old measurement IDs to map to new, grouped IDs
     def updateIngrMeasureIds(self, new_m_id, old_m_id):
         # set cursor and execute
         cursor = self.connection.cursor()
@@ -240,6 +243,7 @@ class dbUser:
         # close connection
         cursor.close()
 
+    # remove any old measurements after normalization
     def deleteMeasurements(self, ids_to_delete):
         # set cursor and execute
         cursor = self.connection.cursor()
@@ -252,6 +256,7 @@ class dbUser:
         # close connection
         cursor.close()
 
+    # get recipe matching requirements
     def getMatchingRecipes(self, ingredients, category, number):
         # set cursor and execute
         cursor = self.connection.cursor()
@@ -270,6 +275,7 @@ class dbUser:
 
         return recipeData
     
+    # get recipe matching requirements for any category
     def getAnyMatchingRecipes(self, ingredients, number):
         # set cursor and execute
         cursor = self.connection.cursor()
@@ -288,6 +294,7 @@ class dbUser:
 
         return recipeData
     
+    # get all unique categories
     def getCategories(self):
         # set cursor and execute
         cursor = self.connection.cursor()
@@ -300,3 +307,39 @@ class dbUser:
         cursor.close()
 
         return [row[0] for row in result]
+    
+    # get all ingredients
+    def getIngredients(self):
+        cursor = self.connection.cursor()
+
+        cursor.execute("SELECT ingredient_id, ingredient from recipes.ingredients")
+
+        result = cursor.fetchall()
+
+        cursor.close()
+
+        return result
+    
+    # insert alternative ingredients
+    def insertAltIngredient(self, ingredient_id, alt_ingredient):
+        cursor = self.connection.cursor()
+
+        cursor.execute("INSERT INTO recipes.alt_ingredients (ingredient_id, alt_ingredient) VALUES (%s, %s) ON CONFLICT DO NOTHING;", (ingredient_id, alt_ingredient))
+
+        # commit the insertion query
+        self.connection.commit()
+
+        # close connection
+        cursor.close()
+
+    # get all alternative ingredients for the ingredient
+    def getAltIngredients(self, ingredient):
+        cursor = self.connection.cursor()
+
+        cursor.execute("SELECT a.alt_ingredient FROM recipes.alt_ingredients a JOIN recipes.ingredients i ON a.ingredient_id = i.ingredient_id WHERE i.ingredient = %s;", (ingredient,))
+
+        result = cursor.fetchall()
+
+        cursor.close()
+
+        return result
