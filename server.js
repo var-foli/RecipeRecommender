@@ -81,6 +81,8 @@ app.get('/api/recipes', async (req, res) => {
     try {
       const { data, error } = await supabase.schema('recipes').rpc('getmatchingrecipes', {ingredients: ingredients, input_category: category, number: number});
 
+      console.log('Supabase response:', { data, error });
+
       if (error) {
         console.error('Supabase query error:', error);
       }
