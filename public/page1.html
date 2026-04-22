@@ -118,14 +118,15 @@
                         const ingredient = ingr.dataset.id;
 
                         const response = await fetch(`/api/alternatives?ingredient=${ingredient}`);
-                        const recipes = await response.json();
+                        const altdata = await response.json();
+                        const altingredients = altdata.alternatives;
 
                         let modalHeader = document.getElementById("modal-header");
                         modalHeader.textContent = `Potential alternatives for ${ingredient}:`;
 
                         let modalUl = document.getElementById("modal-ul");
                         modalUl.replaceChildren();
-                        recipes.forEach((altIngr) => {
+                        altingredients.forEach((altIngr) => {
                             let altIngrLi = document.createElement("li");
                             altIngrLi.textContent = altIngr;
                             modalUl.appendChild(altIngrLi);

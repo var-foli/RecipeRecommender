@@ -79,7 +79,7 @@ app.get('/api/recipes', async (req, res) => {
   } else {
     
     try {
-      const { data, error } = await supabase.schema('recipes').rpc('getmatchingrecipes', {ingredients, category, number});
+      const { data, error } = await supabase.schema('recipes').rpc('getmatchingrecipes', {ingredients: ingredients, input_category: category, number: number});
 
       if (error) {
         console.error('Supabase query error:', error);
@@ -141,14 +141,19 @@ app.get('/api/alternatives', async (req, res) => {
   const ingredient = req.query.ingredient;
 
   try {
-    const { data, error } = await supabase.schema('recipes').rpc('getaltingredients', {ingredient});
+    const { data, error } = await supabase.schema('recipes').rpc('getaltingredients', {searchingredient: ingredient});
 
     if (error) {
       console.error('Supabase query error:', error);
     }
 
+    const altIngredients = [];
+    data.forEach((ingr) => { 
+      altIngredients.push(ingr.alt_ingredient); 
+    });
+
     res.status(200);
-    res.send(JSON.stringify({ alternatives: data }));
+    res.send(JSON.stringify({ alternatives: altIngredients }));
   } catch (err) {
     res.status(500);
     res.send(JSON.stringify({ error: err.message }));
