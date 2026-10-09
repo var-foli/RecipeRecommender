@@ -29,7 +29,7 @@ app.get('/', (req, res) => {
 })
 
 app.get('/api/recipes', async (req, res) => {
-  /*
+  
   // for local testing
   const ingredients = req.query.ingredients;
   const category = req.query.category;
@@ -55,8 +55,8 @@ app.get('/api/recipes', async (req, res) => {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify({ error: err.message }));
     }
-  }*/
-  
+  }
+  /*
   // for vercel deployment
   const ingredients = req.query.ingredients.split(", ");
   const category = req.query.category;
@@ -93,11 +93,11 @@ app.get('/api/recipes', async (req, res) => {
       res.status(500);
       res.send(JSON.stringify({ error: err.message }));
     }
-  }
+  }*/
 })
 
 app.get('/api/categories', async (req, res) => {
-  /*
+  
   // for local testing
   try {
     const response = await fetch('http://localhost:5000/api/categories');
@@ -107,8 +107,8 @@ app.get('/api/categories', async (req, res) => {
     res.writeHead(500, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ error: err.message }));
   }
-  */
   
+  /*
   // for vercel deployment
   try {
     const { data, error } = await supabase.schema('recipes').rpc('getcategories', {});
@@ -123,10 +123,11 @@ app.get('/api/categories', async (req, res) => {
     res.status(500);
     res.send(JSON.stringify({ error: err.message }));
   }
+  */
 })
 
 app.get('/api/alternatives', async (req, res) => {
-  /*
+  
   // for local testing
   const ingredient = req.query.ingredient;
 
@@ -137,8 +138,8 @@ app.get('/api/alternatives', async (req, res) => {
   } catch (err) {
     res.writeHead(500, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ error: err.message }));
-  }*/
-
+  }
+  /*
   // for vercel deployment
   const ingredient = req.query.ingredient;
 
@@ -160,7 +161,7 @@ app.get('/api/alternatives', async (req, res) => {
     res.status(500);
     res.send(JSON.stringify({ error: err.message }));
   }
-
+  */
 });
 
 app.listen(PORT, (error) => {
