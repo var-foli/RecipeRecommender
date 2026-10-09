@@ -1,0 +1,202 @@
+<html>
+    <head>
+        <title>Recipe Recommender</title>
+    </head>
+
+    <link rel="stylesheet" href="style.css">
+    <form id="recipeForm" action="/" method="GET">
+        <h1>Recipe Recommender</h1> 
+        <div id="div-1">
+            <div id="div-2">
+                <h2>List your ingredients below:</h2>
+
+                <textarea style="width:700px; height:40px; overflow:hidden" type="text" id="ingredients" name="ingredients" 
+                    placeholder="ex.
+        eggs, milk, flour, water, baking soda"></textarea><br>
+            </div>
+
+            <div id="div-3">
+                <h3>How many ingredients in the recipe need to match items from your ingredients list?</h3>
+
+                <textarea style="width:80px;height:25px;overflow:hidden;resize:none" type="text" id="numb" name="numb"></textarea><br><br>
+
+                <label for="categoriesDropdown">Choose a category:</label>
+                <select id="categoriesDropdown"></select><br>
+
+                <input type="submit" id="recipessubmit" value="Submit">
+            </div>
+
+            <div id="div-4">
+                <h4>Suggested recipes:</h4>
+                <div id="div-5">
+                    <ul id="output"></ul>
+                </div>
+            </div>
+        </div>
+        <button type="button" id="recipesreturn" action="/" method="GET">Start over</button>
+
+        <div id="modal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <p id="modal-header"></p>
+                <ul id="modal-ul"></ul>
+            </div>
+        </div>
+        
+    </form> 
+
+    <script>
+        document.getElementById("div-4").style.display = "none";
+        document.getElementById("recipesreturn").style.display = "none";
+
+        window.addEventListener("DOMContentLoaded", async () => {
+            const cat = await fetch('/api/categories');
+            const categories = await cat.json();
+            
+
+            const categorySelector = document.getElementById("categoriesDropdown");
+
+            let element = document.createElement("option");
+            element.textContent = "Any";
+            categorySelector.appendChild(element);
+
+            categories.forEach(category => {
+                let element = document.createElement("option");
+                element.textContent = category;
+                categorySelector.appendChild(element);
+            });
+            categorySelector.value = "";
+        })
+        
+        document.getElementById("recipessubmit").addEventListener("click", async (event) => {
+            // stop from reloading page
+            event.preventDefault();
+            const ingr = document.getElementById('ingredients').value;
+            const category = document.getElementById('categoriesDropdown').value;
+            const numb = document.getElementById('numb').value;
+            const response = await fetch(`/api/recipes?ingredients=${encodeURIComponent(ingr)}&category=${category}&numb=${numb}`);
+            const recipes = await response.json();
+
+            let recipesData = document.getElementById("output");
+            let list = document.createElement("ul");
+            recipesData.appendChild(list);
+
+            recipes.recipes.forEach(recipe => {
+                let element = document.createElement("li");
+                element.textContent = recipe.name;
+                element.classList.add("recipe-name");
+                let subElement = document.createElement("ul");
+                element.appendChild(subElement);
+
+                let category = document.createElement("li");
+                category.innerHTML = "<span class='recipe-label'>Category:</span> " + recipe.category; 
+                subElement.appendChild(category);
+
+                let ingrList = document.createElement("li");  
+                ingrList.innerHTML = "<span class='recipe-label'>Ingredients:</span>"
+                let subIngrList = document.createElement("ul");
+                subIngrList.id = "ingredientsList";
+                
+                for (i=0; i<recipe.ingredients.length; i++) {
+                    let ingr = document.createElement("li");
+
+                    // setting data-id attribute so that we can listen for click on this element and retrieve the text stored in it
+                    ingr.setAttribute("data-id", recipe.ingredients[i]);
+
+                    if (recipe.measurement_amounts[i] != null) {
+                        ingr.textContent += recipe.measurement_amounts[i]
+                    }
+                    if (recipe.measurements[i] != null) {
+                        ingr.textContent += " " + recipe.measurements[i]
+                    }
+                    if (recipe.ingredients[i] != null) {
+                        ingr.textContent += " " + recipe.ingredients[i]
+                    }
+                    subIngrList.appendChild(ingr);
+
+                    ingr.onclick = async () => {
+                        const ingredient = ingr.dataset.id;
+
+                        const response = await fetch(`/api/alternatives?ingredient=${ingredient}`);
+                        const altdata = await response.json();
+                        const altingredients = altdata.alternatives;
+
+                        let modalHeader = document.getElementById("modal-header");
+                        modalHeader.textContent = `Potential alternatives for ${ingredient}:`;
+
+                        let modalUl = document.getElementById("modal-ul");
+                        modalUl.replaceChildren();
+                        altingredients.forEach((altIngr) => {
+                            let altIngrLi = document.createElement("li");
+                            altIngrLi.textContent = altIngr;
+                            modalUl.appendChild(altIngrLi);
+                        })
+
+                        let modal = document.getElementById("modal");
+                        let span = document.getElementsByClassName("close")[0];
+
+                        modal.style.display = "block";
+                        span.onclick = () => {
+                            modal.style.display = "none";
+                        }
+                    }
+                }
+                ingrList.appendChild(subIngrList);
+                subElement.appendChild(ingrList);
+
+                if ( !!recipe.source ) {
+                    let source = document.createElement("li");
+                    source.innerHTML = "<span class='recipe-label'>Source:</span> ";
+
+                    let sourceLink = document.createElement("a");
+                    sourceLink.href = recipe.source;
+                    sourceLink.target = "_blank";
+                    sourceLink.textContent = recipe.source;
+
+                    source.appendChild(sourceLink);
+                    subElement.appendChild(source);
+                }
+
+                if ( !!recipe.youtube ) {
+                    let youtube = document.createElement("li");
+                    youtube.innerHTML = "<span class='recipe-label'>Youtube:</span> ";
+
+                    let youtubeLink = document.createElement("a");
+                    youtubeLink.href = recipe.youtube;
+                    youtubeLink.target = "_blank";
+                    youtubeLink.textContent = recipe.youtube;
+
+                    youtube.appendChild(youtubeLink);
+                    subElement.appendChild(youtube);
+                }
+
+                list.appendChild(element);
+            });
+
+            document.getElementById("div-2").style.display = "none";
+            document.getElementById("div-3").style.display = "none";
+            document.getElementById("div-4").style.display = "block";
+            document.getElementById("recipesreturn").style.display = "block";
+        })
+
+        document.getElementById("recipesreturn").addEventListener("click", async (event) => {
+            document.getElementById("output").replaceChildren();
+            document.getElementById("ingredients").value = "";
+            document.getElementById("numb").value = "";
+            document.getElementById("categoriesDropdown").value = "";
+            document.getElementById("div-2").style.display = "block";
+            document.getElementById("div-3").style.display = "block";
+            document.getElementById("div-4").style.display = "none";
+            document.getElementById("recipesreturn").style.display = "none";
+        })
+
+        /*document.getElementById("ingredientsList").addEventListener("click", async (event) => { 
+            const ingredient = event.dataset.id;
+            console.log(`${ingredient}`);
+
+            const response = await fetch(`/api/alternatives?ingredient=${ingredient}`);
+            const recipes = await response.json();
+            console.log("alternatives: ", recipes);
+        })*/
+    </script>
+</html>

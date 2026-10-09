@@ -1,0 +1,11 @@
+.env
+.venv
+*.csv
+*.safetensors
+venv
+__pycache__/
+logs/
+*.sql
+langModel/trainedModels/
+node_modules/
+*.log
